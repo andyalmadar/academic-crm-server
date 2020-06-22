@@ -1,3 +1,7 @@
+type Token {
+    token: String!
+}
+
 type Cliente {
     id: ID
     nombre: String
@@ -60,7 +64,7 @@ type Query {
     getProducto(id: ID): Producto
     totalProductos: String
     # Pedidos
-    getPedidos(cliente: String): [Pedido]
+    getPedidos(cliente: ID): [Pedido]
     # Gráficos
     topClientes: [ClienteTotal]
 }
@@ -112,4 +116,7 @@ type Mutation {
     # Pedidos
     crearPedido(formulario: PedidoInput) : Pedido
     actualizarPedido(formulario: PedidoInput, estadoAnterior: String) : String # El resolve del resolver devuelve un String, por eso escribo String acá
+    # Usuarios
+    crearUsuario(usuario: String!, password: String!) : String
+    autenticarUsuario(usuario: String!, password: String!) : Token
 }

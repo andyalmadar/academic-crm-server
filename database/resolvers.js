@@ -1,11 +1,27 @@
-import {Clientes, Productos, Pedidos} from './db';
+import { Clientes, Productos, Pedidos, Usuarios } from './db';
+import bcrypt from 'bcrypt';
+
+// Acá es generado el token de acceso
+import dotenv from 'dotenv';
+dotenv.config({
+    path: "variables.env"
+});
+
+import jwt from 'jsonwebtoken';
+const crearToken = (elUsuario, secreto, expira) => {
+    const { usuario } = elUsuario;
+
+    return jwt.sign({usuario}, secreto, {
+        expiresIn: expira
+    });
+}
 
 export const resolvers = {
     Query: {
-        getClientes: (root, {limite, offset}) => {
+        getClientes: (root, { limite, offset }) => {
             return Clientes.find({}).limit(limite).skip(offset);
         },
-        getCliente: (root, {id}) => {
+        getCliente: (root, { id }) => {
             return new Promise((resolve, object) => {
                 Clientes.findById(id, (error, cliente) => {
                     if (error) {
@@ -27,7 +43,7 @@ export const resolvers = {
                 })
             });
         },
-        getProductos: (root, {limite, offset, hideSoldOut}) => {
+        getProductos: (root, { limite, offset, hideSoldOut }) => {
             let filtro;
 
             if (hideSoldOut) {
@@ -40,7 +56,7 @@ export const resolvers = {
 
             return Productos.find(filtro).limit(limite).skip(offset);
         },
-        getProducto: (root, {id}) => {
+        getProducto: (root, { id }) => {
             return new Promise((resolve, object) => {
                 Productos.findById(id, (error, producto) => {
                     if (error) {
@@ -62,7 +78,7 @@ export const resolvers = {
                 })
             });
         },
-        getPedidos: (root, {cliente}) => {
+        getPedidos: (root, { cliente }) => {
             return new Promise((resolve, object) => {
                 Pedidos.find({
                     cliente: cliente
@@ -118,7 +134,7 @@ export const resolvers = {
         }
     },
     Mutation: {
-        crearCliente: (root, {formulario}) => {
+        crearCliente: (root, { formulario }) => {
             const nuevoCliente = new Clientes({
                 nombre: formulario.nombre,
                 apellido: formulario.apellido,
@@ -141,7 +157,7 @@ export const resolvers = {
                 });
             });
         },
-        actualizarCliente: (root, {formulario}) => {
+        actualizarCliente: (root, { formulario }) => {
             return new Promise((resolve, object) => {
                 Clientes.findOneAndUpdate({_id: formulario.id}, formulario, {new: true}, (error, cliente) => {
                     if (error) {
@@ -152,7 +168,7 @@ export const resolvers = {
                 });
             });
         },
-        eliminarCliente: (root, {id}) => {
+        eliminarCliente: (root, { id }) => {
             return new Promise((resolve, object) => {
                 Clientes.findOneAndDelete({_id: id}, (error) => {
                     if (error) {
@@ -163,7 +179,7 @@ export const resolvers = {
                 });
             });
         },
-        crearProducto: (root, {formulario}) => {
+        crearProducto: (root, { formulario }) => {
             const nuevoProducto = new Productos({
                 nombre: formulario.nombre,
                 precio: formulario.precio,
@@ -183,7 +199,7 @@ export const resolvers = {
                 });
             });
         },
-        actualizarProducto: (root, {formulario}) => {
+        actualizarProducto: (root, { formulario }) => {
             return new Promise((resolve, object) => {
                 Productos.findOneAndUpdate({_id: formulario.id}, formulario, {new: true}, (error, producto) => {
                     if (error) {
@@ -194,7 +210,7 @@ export const resolvers = {
                 });
             });
         },
-        eliminarProducto: (root, {id}) => {
+        eliminarProducto: (root, { id }) => {
             return new Promise((resolve, object) => {
                 Productos.findOneAndDelete({_id: id}, (error) => {
                     if (error) {
@@ -205,7 +221,7 @@ export const resolvers = {
                 });
             });
         },
-        crearPedido: (root, {formulario}) => {
+        crearPedido: (root, { formulario }) => {
             const nuevoPedido = new Pedidos({
                 pedido: formulario.pedido,
                 total: formulario.total,
@@ -239,7 +255,7 @@ export const resolvers = {
                 });
             });
         },
-        actualizarPedido: (root, {formulario, estadoAnterior}) => {
+        actualizarPedido: (root, { formulario, estadoAnterior }) => {
             return new Promise((resolve, object) => {
                 // Acá bajamos el stock de productos pedidos si fue completado o lo restauramos si fue cancelado
                 const { estado } = formulario;
@@ -271,6 +287,38 @@ export const resolvers = {
                     }
                 })
             });
+        },
+        crearUsuario: async (root, { usuario, password }) => {
+            const existeUsuario = await Usuarios.findOne({usuario});
+
+            if (existeUsuario) {
+                throw new Error("El usuario ya existe");
+            } else {
+                const nuevoUsuario = await new Usuarios({
+                    usuario,
+                    password
+                });
+    
+                nuevoUsuario.save();
+
+                return "Usuario creado PERFEKTAMENTE";
+            }
+        },
+        autenticarUsuario: async (root, { usuario, password }) => {
+            const elUsuario = await Usuarios.findOne({usuario});
+            
+            if (!elUsuario) {
+                throw new Error("Ese usuario no existe");
+            }
+
+            const passwordCorrecta = await bcrypt.compare(password, elUsuario.password);
+
+            if (!passwordCorrecta) {
+                throw new Error("Password incorrecta");
+            }
+            return {
+                token: crearToken(elUsuario, process.env.SECRETO, "1hr")
+            }
         }
     }
 }
