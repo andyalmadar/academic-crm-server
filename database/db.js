@@ -15,7 +15,8 @@ const clientesSchema = new Schema({
     emails: Array,
     edad: Number,
     tipo: String,
-    pedidos: Array
+    pedidos: Array,
+    vendedor: mongoose.Types.ObjectId 
 });
 const Clientes = mongoose.model('clientes', clientesSchema);
 
@@ -33,14 +34,17 @@ const pedidosSchema = new Schema({
     total: Number,
     fecha: Date,
     cliente: mongoose.Types.ObjectId,
-    estado: String
+    estado: String,
+    vendedor: mongoose.Types.ObjectId
 });
 const Pedidos = mongoose.model('pedidos', pedidosSchema);
 
 // Definimos el schema de Usuarios
 const usuariosSchema = new Schema({
     usuario: String,
-    password: String
+    nombre: String,
+    password: String,
+    rol: String
 });
 // Hash de password antes de guardar (.pre('save') sirve para ejecutar algo antes de que sea guardado en la base de datos)
 usuariosSchema.pre('save', function(next) {

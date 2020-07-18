@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Clientes, Productos, Pedidos, Usuarios } from './db';
 import bcrypt from 'bcrypt';
 
@@ -16,10 +17,20 @@ const crearToken = (elUsuario, secreto, expira) => {
     });
 }
 
+const ObjectId = mongoose.Types.ObjectId;
+
 export const resolvers = {
     Query: {
-        getClientes: (root, { limite, offset }) => {
-            return Clientes.find({}).limit(limite).skip(offset);
+        getClientes: (root, { limite, offset, vendedor }) => {
+            let filtro;
+
+            if (vendedor) {
+                filtro = {
+                    vendedor: new ObjectId(vendedor)
+                }
+            }
+
+            return Clientes.find(filtro).limit(limite).skip(offset);
         },
         getCliente: (root, { id }) => {
             return new Promise((resolve, object) => {
@@ -32,9 +43,17 @@ export const resolvers = {
                 });
             });
         },
-        totalClientes: (root) => {
+        totalClientes: (root, { vendedor }) => {
+            let filtro;
+
+            if (vendedor) {
+                filtro = {
+                    vendedor: new ObjectId(vendedor)
+                }
+            }
+
             return new Promise((resolve, object) =>{
-                Clientes.countDocuments({}, (error, count) => {
+                Clientes.countDocuments(filtro, (error, count) => {
                     if (error) {
                         reject(error);
                     } else {
@@ -131,6 +150,57 @@ export const resolvers = {
                     }
                 })
             })
+        },
+        topVendedores: (root) => {
+            return new Promise((resolve, object) => {
+                Pedidos.aggregate([
+                    {
+                        $match: {
+                            estado: "COMPLETADO"
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: "$vendedor",
+                            total: {
+                                $sum: "$total"
+                            }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: "usuarios",
+                            localField: "_id",
+                            foreignField: "_id",
+                            as: "vendedor"
+                        }
+                    },
+                    {
+                        $sort: {
+                            total: -1
+                        }
+                    },
+                    {
+                        $limit: 10
+                    }
+                ], (error, response) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(response);
+                    }
+                })
+            })
+        },
+        getUsuario: (root, args, { usuarioActual }) => {
+            if (!usuarioActual) {
+                return null;
+            }
+            
+            // Obtengo el usuario actual (usuarioActual) del objetito que obtengo con el sign(), el de user, iat, exp...
+            const usuario = Usuarios.findOne({usuario: usuarioActual.usuario})
+
+            return usuario;
         }
     },
     Mutation: {
@@ -142,7 +212,8 @@ export const resolvers = {
                 emails: formulario.emails,
                 edad: formulario.edad,
                 tipo: formulario.tipo,
-                pedidos: formulario.pedidos
+                pedidos: formulario.pedidos,
+                vendedor: formulario.vendedor
             });
             // MongoDB crea un ID automático que es _id
             nuevoCliente.id = nuevoCliente._id;
@@ -227,7 +298,8 @@ export const resolvers = {
                 total: formulario.total,
                 fecha: new Date(),
                 cliente: formulario.cliente,
-                estado: "PENDIENTE"
+                estado: "PENDIENTE",
+                vendedor: formulario.vendedor
             });
             // MongoDB crea un ID automático que es _id
             nuevoPedido.id = nuevoPedido._id
@@ -288,7 +360,7 @@ export const resolvers = {
                 })
             });
         },
-        crearUsuario: async (root, { usuario, password }) => {
+        crearUsuario: async (root, { usuario, nombre, password, rol }) => {
             const existeUsuario = await Usuarios.findOne({usuario});
 
             if (existeUsuario) {
@@ -296,7 +368,9 @@ export const resolvers = {
             } else {
                 const nuevoUsuario = await new Usuarios({
                     usuario,
-                    password
+                    nombre,
+                    password,
+                    rol
                 });
     
                 nuevoUsuario.save();

@@ -2,6 +2,13 @@ type Token {
     token: String!
 }
 
+type Usuario {
+    id: ID
+    usuario: String
+    nombre: String
+    rol: String
+}
+
 type Cliente {
     id: ID
     nombre: String
@@ -15,6 +22,11 @@ type Cliente {
 type ClienteTotal {
     total: Float
     cliente: [Cliente]
+}
+
+type VendedorTotal {
+    total: Float
+    vendedor: [Usuario]
 }
 
 type Email {
@@ -56,9 +68,9 @@ type Producto {
 
 type Query {
     # Clientes
-    getClientes(limite: Int, offset: Int): [Cliente]
+    getClientes(limite: Int, offset: Int, vendedor: String): [Cliente]
     getCliente(id: ID): Cliente
-    totalClientes: String
+    totalClientes(vendedor: String): String
     # Productos
     getProductos(limite: Int, offset: Int, hideSoldOut: Boolean): [Producto]
     getProducto(id: ID): Producto
@@ -67,6 +79,9 @@ type Query {
     getPedidos(cliente: ID): [Pedido]
     # Gráficos
     topClientes: [ClienteTotal]
+    topVendedores: [VendedorTotal]
+    # Usuarios
+    getUsuario: Usuario
 }
 
 input EmailInput {
@@ -80,6 +95,7 @@ input PedidoInput {
     fecha: String
     cliente: ID
     estado: EstadoPedido
+    vendedor: ID
 }
 
 input PedidoProductoInput {
@@ -95,6 +111,7 @@ input ClienteInput {
     emails: [EmailInput]
     edad: Int!
     tipo: TipoCliente!
+    vendedor: ID
 }
 
 input ProductoInput {
@@ -117,6 +134,6 @@ type Mutation {
     crearPedido(formulario: PedidoInput) : Pedido
     actualizarPedido(formulario: PedidoInput, estadoAnterior: String) : String # El resolve del resolver devuelve un String, por eso escribo String acá
     # Usuarios
-    crearUsuario(usuario: String!, password: String!) : String
+    crearUsuario(usuario: String!, nombre: String!, password: String!, rol: String!) : String
     autenticarUsuario(usuario: String!, password: String!) : Token
 }
